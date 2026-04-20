@@ -1,0 +1,151 @@
+---
+title: "Beaver Temperature"
+author: Lea Keller
+date: "`r date()`"
+format:
+  html:
+    toc: true
+    code-fold: show
+    code-tools: true
+    df-print: paged
+    embed-resources: true
+  pdf:
+    toc: true
+  docx:
+    toc: true
+---
+
+# Set up
+
+Loading all necessary packages and libraries.
+
+```{r}
+#| output: false
+library(labelled)
+library(tidyverse)
+library(readr)
+library(usethis)
+library(here)
+library(gtsummary)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+
+## Loading Data
+Loading two different datasets with temperature data from two different beavers. The data is already included in R, so no need to import it from an external source.
+```{r}
+#Body Temperature Series of a beaver
+beaver1 <- beaver1
+beaver2 <- beaver2
+```
+
+## Data Wrangling
+Data converted from military time to total minutes in order to create a continuous time variable for both days. The data was also cleaned and modified, because measurements were done after midnight, 1140 minutes were added to day 2 total minutes.
+```{r}
+#Calculate total minutes for each time point
+beavers1_time <- beaver1 %>%
+  mutate(
+    hours = time %/% 100,
+    minutes = time %% 100,
+    total_minutes = (hours * 60) + minutes,
+  )
+
+
+beavers2_time <- beaver2 %>%
+  mutate(
+    hours = time %/% 100,
+    minutes = time %% 100,
+    total_minutes = (hours * 60) + minutes,
+  )
+
+#Clean and modify data, because measurments were done after midnight, 1140 minutes were added to day 2 total minutes. 
+beavers1_time <- beavers1_time |>
+  mutate(day = ifelse(day == 346,1,2)) |>
+  mutate(total_minutes = ifelse(day== 2,
+                       total_minutes + 1440,
+                       total_minutes))
+       
+
+beavers2_time <- beavers2_time |>
+  mutate(day = ifelse(day == 307,1,2)) |>
+  mutate(total_minutes = ifelse(day== 2,
+                                total_minutes + 1440,
+                                total_minutes))
+```
+
+The two datasets were combined into one dataset for further analysis and plotting.
+```{r}
+#combine data
+beavers_complete <- bind_rows(
+  beavers1_time = beavers1_time,
+  beavers2_time = beavers2_time,
+.id = "beaver_id"
+)
+```
+
+# Data Plotting
+@fig-1 :Temperature plot beaver 1
+```{r}
+#| label: fig-1
+#| fig-cap: "Temperature plot beaver 1"
+#| fig-width: 8
+#| fig-height: 4
+plot_beavers1 <- ggplot(data = beavers1_time, 
+                        mapping = aes(x = total_minutes, y = temp)) + 
+  geom_point()
+plot_beavers1
+```
+@fig-2: Temperature plot beaver 1
+```{r}
+#| label: fig-2
+#| fig-cap: "Temperature plot beaver 2"
+#| fig-width: 8
+#| fig-height: 4
+ggplot(data = beavers2_time, 
+                        mapping = aes(x = total_minutes, y = temp)) + 
+  geom_point()
+```
+
+@fig-3: Temperature of both beavers combined in a simple graph
+```{r}
+#| label: fig-3
+#| fig-cap: "Combined temperature plot of both beavers"
+#| fig-width: 8
+#| fig-height: 4
+ggplot(data = beavers_complete, 
+                        mapping = aes(x = total_minutes, y = temp, color = beaver_id)) + 
+  geom_line(mapping = aes(group = beaver_id ))
+```
+@fig-4: Temperature of both beavers combined in a more detailed graph with labelling and custom colours.
+```{r}
+#| label: fig-4
+#| fig-cap: "Combined temperature plot of both beavers - with labelling"
+#| fig-width: 8
+#| fig-height: 4
+beaver_plot <- ggplot(data = beavers_complete, 
+                        mapping = aes(x = total_minutes, y = temp, colour = beaver_id)) + 
+  geom_line(mapping = aes(group = beaver_id), 
+            alpha = 0.7, linetype = "solid", linewidth = 1.5) +
+  scale_colour_manual(name = "Beaver ID",
+                      breaks = c("beavers1_time", "beavers2_time"), 
+                      values = c("salmon", "purple"),
+                      labels = c("Beaver 1", "Beaver 2")) + 
+  ggtitle(label = "Body Temperature of two Beavers") +
+  xlab(label = "Time (seconds)") +
+  ylab(label = "Temperature (°C)")
+beaver_plot 
+```
+
+# Save last plit as png file in output/figures folder.
+
+```{r}
+ggsave(beaver_plot, 
+       filename = here("output", "figures", "beaver_plot.png"), 
+       width = 8, height = 4, dpi = 300)
+```
+
+
+```{r}
+sessionInfo()
+```
